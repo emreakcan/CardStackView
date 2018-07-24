@@ -1,8 +1,8 @@
 
 # This repository forked from yuyakaido as mentioned.
-- ![#1589F0](https://placehold.it/15/1589F0/000000?text=+) `#1589F0`
 
-I fixed some major issues like blinking and elevation bugs but after those issues it become hard to merge. 
+
+# I fixed some major issues like blinking and elevation bugs but after those issues it become hard to merge. 
 And I revised the project with updated/new android componets.
 
 
