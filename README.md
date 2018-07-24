@@ -1,3 +1,8 @@
+
+# This repository forked from yuyakaido as mentioned. I fixed some major issues like blinking and elevation bugs but after those issues it become hard to merge. 
+
+
+
 ![Logo](https://github.com/yuyakaido/CardStackView/blob/master/images/logo.png)
 
 # CardStackView
