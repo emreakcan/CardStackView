@@ -1,11 +1,11 @@
 package com.yuyakaido.android.cardstackview.internal;
 
-import android.animation.AnimatorSet;
 import android.content.Context;
 import android.graphics.Point;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -27,6 +27,7 @@ public class CardContainerView extends FrameLayout {
     private float motionOriginY = 0f;
     private boolean isDragging = false;
     private boolean isDraggable = true;
+    private boolean isSwiping = false;
 
     private ViewGroup contentContainer = null;
     private ViewGroup overlayContainer = null;
@@ -49,7 +50,7 @@ public class CardContainerView extends FrameLayout {
 
     public interface ContainerEventListener {
         void onContainerDragging(float percentX, float percentY);
-        void onContainerSwiped(Point point, SwipeDirection direction);
+        void onContainerSwiped(CardContainerView container, Point point, SwipeDirection direction);
         void onContainerMovedToOrigin();
         void onContainerClicked();
     }
@@ -85,13 +86,16 @@ public class CardContainerView extends FrameLayout {
         switch (MotionEventCompat.getActionMasked(event)) {
             case MotionEvent.ACTION_DOWN:
                 handleActionDown(event);
+                if (getParent() == null) break;
                 getParent().getParent().requestDisallowInterceptTouchEvent(true);
                 break;
             case MotionEvent.ACTION_UP:
                 handleActionUp(event);
+                if (getParent() == null) break;
                 getParent().getParent().requestDisallowInterceptTouchEvent(false);
                 break;
             case MotionEvent.ACTION_CANCEL:
+                if (getParent() == null) break;
                 getParent().getParent().requestDisallowInterceptTouchEvent(false);
                 break;
             case MotionEvent.ACTION_MOVE:
@@ -105,6 +109,18 @@ public class CardContainerView extends FrameLayout {
     private void handleActionDown(MotionEvent event) {
         motionOriginX = event.getRawX();
         motionOriginY = event.getRawY();
+    }
+
+    public boolean isDragging() {
+        return isDragging;
+    }
+
+    public boolean isSwiping() {
+        return isSwiping;
+    }
+
+    public void setSwiping() {
+        isSwiping = true;
     }
 
     private void handleActionUp(MotionEvent event) {
@@ -170,8 +186,9 @@ public class CardContainerView extends FrameLayout {
 
             if (Math.abs(percent) > option.swipeThreshold) {
                 if (option.swipeDirection.contains(direction)) {
+                    isSwiping = true;
                     if (containerEventListener != null) {
-                        containerEventListener.onContainerSwiped(point, direction);
+                        containerEventListener.onContainerSwiped(this, point, direction);
                     }
                 } else {
                     moveToOrigin();
@@ -216,24 +233,8 @@ public class CardContainerView extends FrameLayout {
         float percentX = getPercentX();
         float percentY = getPercentY();
 
-        if (option.swipeDirection == SwipeDirection.HORIZONTAL) {
-            showHorizontalOverlay(percentX);
-        } else if (option.swipeDirection == SwipeDirection.VERTICAL) {
-            showVerticalOverlay(percentY);
-        } else if (option.swipeDirection == SwipeDirection.FREEDOM_NO_BOTTOM) {
-            if (Math.abs(percentX) < Math.abs(percentY) && percentY < 0) {
-                showTopOverlay();
-                setOverlayAlpha(Math.abs(percentY));
-            } else {
-                showHorizontalOverlay(percentX);
-            }
-        } else if (option.swipeDirection == SwipeDirection.FREEDOM) {
-            if (Math.abs(percentX) > Math.abs(percentY)) {
-                showHorizontalOverlay(percentX);
-            } else {
-                showVerticalOverlay(percentY);
-            }
-        } else {
+        if (option.swipeDirection.equals(SwipeDirection.FREEDOM) ||
+                option.swipeDirection.equals(SwipeDirection.FREEDOM_NO_BOTTOM)) {
             if (Math.abs(percentX) > Math.abs(percentY)){
                 if (percentX < 0) {
                     showLeftOverlay();
@@ -241,7 +242,7 @@ public class CardContainerView extends FrameLayout {
                     showRightOverlay();
                 }
                 setOverlayAlpha(Math.abs(percentX));
-            } else {
+            }else{
                 if (percentY < 0) {
                     showTopOverlay();
                 } else {
@@ -249,25 +250,21 @@ public class CardContainerView extends FrameLayout {
                 }
                 setOverlayAlpha(Math.abs(percentY));
             }
+        } else if (option.swipeDirection.equals(SwipeDirection.HORIZONTAL)) {
+            if (percentX < 0) {
+                showLeftOverlay();
+            } else {
+                showRightOverlay();
+            }
+            setOverlayAlpha(Math.abs(percentX));
+        } else if (option.swipeDirection.equals(SwipeDirection.VERTICAL)) {
+            if (percentY < 0) {
+                showTopOverlay();
+            } else {
+                showBottomOverlay();
+            }
+            setOverlayAlpha(Math.abs(percentY));
         }
-    }
-
-    private void showHorizontalOverlay(float percentX) {
-        if (percentX < 0) {
-            showLeftOverlay();
-        } else {
-            showRightOverlay();
-        }
-        setOverlayAlpha(Math.abs(percentX));
-    }
-
-    private void showVerticalOverlay(float percentY) {
-        if (percentY < 0) {
-            showTopOverlay();
-        } else {
-            showBottomOverlay();
-        }
-        setOverlayAlpha(Math.abs(percentY));
     }
 
     private void moveToOrigin() {
@@ -281,8 +278,8 @@ public class CardContainerView extends FrameLayout {
 
     public void setContainerEventListener(ContainerEventListener listener) {
         this.containerEventListener = listener;
-        viewOriginX = ViewCompat.getTranslationX(this);
-        viewOriginY = ViewCompat.getTranslationY(this);
+        //viewOriginX = ViewCompat.getTranslationX(this);
+        //viewOriginY = ViewCompat.getTranslationY(this);
     }
 
     public void setCardStackOption(CardStackOption option) {
@@ -296,6 +293,8 @@ public class CardContainerView extends FrameLayout {
     public void reset() {
         ViewCompat.setAlpha(contentContainer, 1f);
         ViewCompat.setAlpha(overlayContainer, 0f);
+        isDragging = false;
+        isSwiping = false;
     }
 
     public ViewGroup getContentContainer() {
@@ -311,9 +310,16 @@ public class CardContainerView extends FrameLayout {
             overlayContainer.removeView(leftOverlayView);
         }
         if (left != 0) {
-            leftOverlayView = LayoutInflater.from(getContext()).inflate(left, overlayContainer, false);
-            overlayContainer.addView(leftOverlayView);
-            ViewCompat.setAlpha(leftOverlayView, 0f);
+            try {
+                leftOverlayView = LayoutInflater.from(getContext()).inflate(left, overlayContainer, false);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            if(overlayContainer != null && leftOverlayView != null){
+                overlayContainer.addView(leftOverlayView);
+                ViewCompat.setAlpha(leftOverlayView, 0f);
+            }
+
         }
 
         if (rightOverlayView != null) {
@@ -341,12 +347,6 @@ public class CardContainerView extends FrameLayout {
             topOverlayView = LayoutInflater.from(getContext()).inflate(top, overlayContainer, false);
             overlayContainer.addView(topOverlayView);
             ViewCompat.setAlpha(topOverlayView, 0f);
-        }
-    }
-
-    public void setOverlayAlpha(AnimatorSet overlayAnimatorSet) {
-        if(overlayAnimatorSet != null) {
-            overlayAnimatorSet.start();
         }
     }
 

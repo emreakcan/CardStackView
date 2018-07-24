@@ -3,16 +3,24 @@ package com.yuyakaido.android.cardstackview;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
 import android.animation.TimeInterpolator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.database.DataSetObserver;
 import android.graphics.Point;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.ScaleAnimation;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 
@@ -36,6 +44,7 @@ public class CardStackView extends FrameLayout {
 
     private CardStackOption option = new CardStackOption();
     private CardStackState state = new CardStackState();
+    private long lastSwipe = 0L;
 
     private BaseAdapter adapter = null;
     private LinkedList<CardContainerView> containers = new LinkedList<>();
@@ -50,7 +59,13 @@ public class CardStackView extends FrameLayout {
                 boolean isSameCount = state.lastCount == adapter.getCount();
                 shouldReset = !isSameCount;
             }
-            initialize(shouldReset);
+
+            if (shouldReset) {
+                initialize(true);
+            } else {
+                initializeViewContents();
+            }
+            // initialize(shouldReset);
             state.lastCount = adapter.getCount();
         }
     };
@@ -60,8 +75,8 @@ public class CardStackView extends FrameLayout {
             update(percentX, percentY);
         }
         @Override
-        public void onContainerSwiped(Point point, SwipeDirection direction) {
-            swipe(point, direction);
+        public void onContainerSwiped(CardContainerView container, Point point, SwipeDirection direction) {
+            swipe(container, point, direction);
         }
         @Override
         public void onContainerMovedToOrigin() {
@@ -197,6 +212,7 @@ public class CardStackView extends FrameLayout {
     private void clear() {
         for (int i = 0; i < option.visibleCount; i++) {
             CardContainerView view = containers.get(i);
+            if (view.isDragging() || view.isSwiping()) continue;
             view.reset();
             ViewCompat.setTranslationX(view, 0f);
             ViewCompat.setTranslationY(view, 0f);
@@ -206,7 +222,10 @@ public class CardStackView extends FrameLayout {
         }
     }
 
+
+
     private void update(float percentX, float percentY) {
+        percentX = (float) (percentX*2.2);
         if (cardEventListener != null) {
             cardEventListener.onCardDragging(percentX, percentY);
         }
@@ -221,8 +240,13 @@ public class CardStackView extends FrameLayout {
             float currentScale = 1f - (i * option.scaleDiff);
             float nextScale = 1f - ((i - 1) * option.scaleDiff);
             float percent = currentScale + (nextScale - currentScale) * Math.abs(percentX);
+
+            if(percent>1)
+                percent = 1;
+
             ViewCompat.setScaleX(view, percent);
             ViewCompat.setScaleY(view, percent);
+
 
             float currentTranslationY = i * Util.toPx(getContext(), option.translationDiff);
             if (option.stackFrom == StackFrom.Top) {
@@ -252,36 +276,34 @@ public class CardStackView extends FrameLayout {
                 .start();
     }
 
-    public void performSwipe(Point point, final Animator.AnimatorListener listener) {
-        getTopView().animate()
+    public void performSwipe(CardContainerView container, Point point, final Animator.AnimatorListener listener) {
+        long timeDiff = System.currentTimeMillis() - lastSwipe;
+        long duration = 200L;
+        if (timeDiff < 800) duration = 100L;
+
+        container.animate()
                 .translationX(point.x)
                 .translationY(-point.y)
-                .setDuration(400L)
+                .setDuration(duration)
                 .setListener(listener)
                 .start();
+        lastSwipe = System.currentTimeMillis();
     }
 
-    public void performSwipe(SwipeDirection direction, AnimatorSet set, AnimatorSet overlayAnimatorSet, final Animator.AnimatorListener listener) {
-        boolean showOverlay;
-        if (showOverlay = direction == SwipeDirection.Left) {
-            getTopView().showLeftOverlay();
-        } else if (showOverlay = direction == SwipeDirection.Right) {
-            getTopView().showRightOverlay();
-        } else if (showOverlay = direction == SwipeDirection.Bottom){
-            getTopView().showBottomOverlay();
-        } else if (showOverlay = direction == SwipeDirection.Top){
-            getTopView().showTopOverlay();
-        } else {
-            showOverlay = false;
+    public void performSwipe(CardContainerView container, SwipeDirection direction, AnimatorSet set, final Animator.AnimatorListener listener) {
+        if (direction == SwipeDirection.Left) {
+            container.showLeftOverlay();
+            container.setOverlayAlpha(1f);
+        } else if (direction == SwipeDirection.Right) {
+            container.showRightOverlay();
+            container.setOverlayAlpha(1f);
+        } else if (direction == SwipeDirection.Bottom){
+            container.showBottomOverlay();
+            container.setOverlayAlpha(1f);
+        } else if (direction == SwipeDirection.Top){
+            container.showTopOverlay();
+            container.setOverlayAlpha(1f);
         }
-        if(showOverlay) {
-            if(overlayAnimatorSet != null) {
-                getTopView().setOverlayAlpha(overlayAnimatorSet);
-            } else {
-                getTopView().setOverlayAlpha(1f);
-            }
-        }
-
         set.addListener(listener);
         set.setInterpolator(new TimeInterpolator() {
             @Override
@@ -316,7 +338,9 @@ public class CardStackView extends FrameLayout {
 
     private void reorderForSwipe() {
         moveToBottom(getTopView());
-        containers.addLast(containers.removeFirst());
+        CardContainerView view = containers.removeFirst();
+        view.reset();
+        containers.addLast(view);
     }
 
     private void reorderForReverse(View prevView) {
@@ -354,8 +378,6 @@ public class CardStackView extends FrameLayout {
     }
 
     private void executePostReverseTask() {
-        state.lastPoint = null;
-
         initializeCardStackPosition();
 
         state.topIndex--;
@@ -472,9 +494,10 @@ public class CardStackView extends FrameLayout {
         state.isPaginationReserved = true;
     }
 
-    public void swipe(final Point point, final SwipeDirection direction) {
+    public void swipe(final CardContainerView container, final Point point, final SwipeDirection direction) {
         executePreSwipeTask();
-        performSwipe(point, new AnimatorListenerAdapter() {
+
+        performSwipe(container, point, new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animator) {
                 executePostSwipeTask(point, direction);
@@ -482,13 +505,10 @@ public class CardStackView extends FrameLayout {
         });
     }
 
-    public void swipe(final SwipeDirection direction, AnimatorSet set) {
-        swipe(direction, set, null);
-    }
-
-    public void swipe(final SwipeDirection direction, AnimatorSet cardAnimatorSet, AnimatorSet overlayAnimatorSet) {
+    public void swipe(final CardContainerView container, final SwipeDirection direction, AnimatorSet set) {
         executePreSwipeTask();
-        performSwipe(direction, cardAnimatorSet, overlayAnimatorSet, new AnimatorListenerAdapter() {
+
+        performSwipe(container, direction, set, new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animator) {
                 executePostSwipeTask(new Point(0, -2000), direction);
@@ -496,17 +516,90 @@ public class CardStackView extends FrameLayout {
         });
     }
 
+    private boolean isReversing = false;
     public void reverse() {
+        if (isReversing) return;
+        for (CardContainerView view : containers) {
+            if (view.isDragging() || view.isSwiping()) {
+                isReversing = true;
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        isReversing = false;
+                        reverse();
+                    }
+                }, 200);
+                return;
+            }
+        }
         if (state.lastPoint != null) {
+            Point lastPoint = state.lastPoint;
+            state.lastPoint = null;
             ViewGroup parent = containers.getLast();
             View prevView = adapter.getView(state.topIndex - 1, null, parent);
-            performReverse(state.lastPoint, prevView, new AnimatorListenerAdapter() {
+            performReverse(lastPoint, prevView, new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animator) {
                     executePostReverseTask();
                 }
             });
         }
+    }
+
+    public void swipeLeft() {
+        CardContainerView target = null;
+        for (CardContainerView view : containers) {
+            if (view.isSwiping()) continue;
+            target = view;
+            break;
+        }
+        if (target == null) return;
+
+        target.setSwiping();
+
+        ValueAnimator rotation = ObjectAnimator.ofPropertyValuesHolder(
+                target, PropertyValuesHolder.ofFloat("rotation", -10f));
+        rotation.setDuration(200);
+        ValueAnimator translateX = ObjectAnimator.ofPropertyValuesHolder(
+                target, PropertyValuesHolder.ofFloat("translationX", 0f, -2000f));
+        ValueAnimator translateY = ObjectAnimator.ofPropertyValuesHolder(
+                target, PropertyValuesHolder.ofFloat("translationY", 0f, 500f));
+        translateX.setStartDelay(100);
+        translateY.setStartDelay(100);
+        translateX.setDuration(500);
+        translateY.setDuration(500);
+        AnimatorSet set = new AnimatorSet();
+        set.playTogether(rotation, translateX, translateY);
+
+        swipe(target, SwipeDirection.Left, set);
+    }
+
+    public void swipeRight() {
+        CardContainerView target = null;
+        for (CardContainerView view : containers) {
+            if (view.isSwiping()) continue;
+            target = view;
+            break;
+        }
+        if (target == null) return;
+
+        target.setSwiping();
+
+        ValueAnimator rotation = ObjectAnimator.ofPropertyValuesHolder(
+                target, PropertyValuesHolder.ofFloat("rotation", 10f));
+        rotation.setDuration(200);
+        ValueAnimator translateX = ObjectAnimator.ofPropertyValuesHolder(
+                target, PropertyValuesHolder.ofFloat("translationX", 0f, 2000f));
+        ValueAnimator translateY = ObjectAnimator.ofPropertyValuesHolder(
+                target, PropertyValuesHolder.ofFloat("translationY", 0f, 500f));
+        translateX.setStartDelay(100);
+        translateY.setStartDelay(100);
+        translateX.setDuration(500);
+        translateY.setDuration(500);
+        AnimatorSet set = new AnimatorSet();
+        set.playTogether(rotation, translateX, translateY);
+
+        swipe(target, SwipeDirection.Right, set);
     }
 
     public CardContainerView getTopView() {
