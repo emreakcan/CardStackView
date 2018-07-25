@@ -163,6 +163,7 @@ public class CardStackView extends FrameLayout {
     private void initializeCardStackPosition() {
         clear();
         update(0f, 0f);
+
     }
 
     private void initializeViewContents() {
@@ -272,7 +273,7 @@ public class CardStackView extends FrameLayout {
                 .translationX(topView.getViewOriginX())
                 .translationY(topView.getViewOriginY())
                 .setListener(listener)
-                .setDuration(400L)
+                .setDuration(300L)
                 .start();
     }
 
@@ -281,8 +282,6 @@ public class CardStackView extends FrameLayout {
         long duration = 750L;
         if (timeDiff < 800)
             duration = 350L;
-
-
 
         container.animate()
                 .translationX(point.x)
@@ -529,7 +528,20 @@ public class CardStackView extends FrameLayout {
 
     private boolean isReversing = false;
     public void reverse() {
+
         if (isReversing) return;
+
+        setElevationEnabled(false);
+
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                setElevationEnabled(true);
+            }
+        }, 1020);
+
+
         for (CardContainerView view : containers) {
             if (view.isDragging() || view.isSwiping()) {
                 isReversing = true;
