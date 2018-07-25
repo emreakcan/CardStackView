@@ -278,8 +278,11 @@ public class CardStackView extends FrameLayout {
 
     public void performSwipe(CardContainerView container, Point point, final Animator.AnimatorListener listener) {
         long timeDiff = System.currentTimeMillis() - lastSwipe;
-        long duration = 200L;
-        if (timeDiff < 800) duration = 100L;
+        long duration = 750L;
+        if (timeDiff < 800)
+            duration = 350L;
+
+
 
         container.animate()
                 .translationX(point.x)
@@ -497,10 +500,18 @@ public class CardStackView extends FrameLayout {
     public void swipe(final CardContainerView container, final Point point, final SwipeDirection direction) {
         executePreSwipeTask();
 
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                executePostSwipeTask(point, direction);
+            }
+        }, 120);
+
         performSwipe(container, point, new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animator) {
-                executePostSwipeTask(point, direction);
+                //executePostSwipeTask(point, direction);
             }
         });
     }
