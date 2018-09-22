@@ -281,7 +281,7 @@ public class CardStackView extends FrameLayout {
         long timeDiff = System.currentTimeMillis() - lastSwipe;
         long duration = 750L;
         if (timeDiff < 800)
-            duration = 350L;
+            duration = 550L;
 
         container.animate()
                 .translationX(point.x)

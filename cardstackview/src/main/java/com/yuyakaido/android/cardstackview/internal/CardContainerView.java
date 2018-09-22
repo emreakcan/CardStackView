@@ -36,6 +36,8 @@ public class CardContainerView extends FrameLayout {
     private View bottomOverlayView = null;
     private View topOverlayView = null;
 
+    private long timeOnPressed;
+
     private ContainerEventListener containerEventListener = null;
     private GestureDetector.SimpleOnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
         @Override
@@ -109,6 +111,8 @@ public class CardContainerView extends FrameLayout {
     private void handleActionDown(MotionEvent event) {
         motionOriginX = event.getRawX();
         motionOriginY = event.getRawY();
+        Log.d("SwipeView Raw x", String.valueOf(event.getRawX()));
+        timeOnPressed = System.currentTimeMillis();
     }
 
     public boolean isDragging() {
@@ -129,6 +133,11 @@ public class CardContainerView extends FrameLayout {
 
             float motionCurrentX = event.getRawX();
             float motionCurrentY = event.getRawY();
+            long timeOnReleased = System.currentTimeMillis();
+
+            Log.d("Time diff", String.valueOf(timeOnReleased - timeOnPressed));
+            Log.d("X Diff", String.valueOf(Math.abs(motionCurrentX - motionOriginX)));
+
 
             Point point = Util.getTargetPoint(motionOriginX, motionOriginY, motionCurrentX, motionCurrentY);
             Quadrant quadrant = Util.getQuadrant(motionOriginX, motionOriginY, motionCurrentX, motionCurrentY);
@@ -184,7 +193,7 @@ public class CardContainerView extends FrameLayout {
                 percent = getPercentY();
             }
 
-            if (Math.abs(percent) > option.swipeThreshold) {
+            if (Math.abs(percent) > option.swipeThreshold || (timeOnReleased - timeOnPressed < 210 && Math.abs(motionOriginX - motionCurrentX) > 215)) {
                 if (option.swipeDirection.contains(direction)) {
                     isSwiping = true;
                     if (containerEventListener != null) {
@@ -232,6 +241,9 @@ public class CardContainerView extends FrameLayout {
     private void updateAlpha() {
         float percentX = getPercentX();
         float percentY = getPercentY();
+
+        //geçiçi çözüm
+        percentX = percentX * 2;
 
         if (option.swipeDirection.equals(SwipeDirection.FREEDOM) ||
                 option.swipeDirection.equals(SwipeDirection.FREEDOM_NO_BOTTOM)) {
