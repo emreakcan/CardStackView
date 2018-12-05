@@ -21,7 +21,7 @@ And I revised the project with updated/new android componets.
 
 # Overview
 
-![Overview](https://github.com/yuyakaido/CardStackView/blob/master/images/overview-github.gif)
+![Overview](http://suddenmate.com/img/demo-screen-1.jpg)
 
 # Contents
 
