@@ -21,7 +21,7 @@ And I revised the project with updated/new android componets.
 
 # Overview
 
-![Overview](http://suddenmate.com/img/demo-screen-1.jpg)
+![Overview](http://suddenmate.com/img/demo-screen-1.jpg =450x250)
 
 # Contents
 
