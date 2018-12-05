@@ -20,8 +20,7 @@ And I revised the project with updated/new android componets.
 [![CircleCI](https://circleci.com/gh/yuyakaido/CardStackView.svg?style=svg)](https://circleci.com/gh/yuyakaido/CardStackView)
 
 # Overview
-
-![Overview](http://suddenmate.com/img/demo-screen-1.jpg){:height="400px" width="200px"}
+<img src="http://suddenmate.com/img/demo-screen-1.jpg" height="440" width="248">
 
 # Contents
 
