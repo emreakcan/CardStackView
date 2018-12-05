@@ -21,7 +21,7 @@ And I revised the project with updated/new android componets.
 
 # Overview
 
-![Overview](http://suddenmate.com/img/demo-screen-1.jpg){:height="50%" width="50%"}
+![Overview](http://suddenmate.com/img/demo-screen-1.jpg){:height="400px" width="200px"}
 
 # Contents
 
